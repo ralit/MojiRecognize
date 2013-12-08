@@ -43,10 +43,8 @@ class MojiRecognize extends Thread {
 			// 2. android.net.http.AndroidHttpClient
 //			DefaultHttpClient client = new DefaultHttpClient(); // (1) こっちも動きました
 			AndroidHttpClient client = AndroidHttpClient.newInstance("Android UserAgent"); // (2)
-			// HttpsPostってクラスはないらしい。URLから自動判別しているのかな
-			// APIキーは別のクラスに入れたよ。
 			HttpPost post = new HttpPost("https://api.apigw.smt.docomo.ne.jp/characterRecognition/v1/scene?APIKEY=" + DocomoAPI.getApi());
-			// これを知らなかった。MultipartのPOSTをするときはこのクラスを使おう
+			// これを知らなかった。MultipartのPOSTをするときはこのクラスを使おう。
 			MultipartEntity multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
 			FileBody fileBody = new FileBody(new File(mFilePath), "image/jpeg");
 			multipartEntity.addPart("image", fileBody);
@@ -89,12 +87,15 @@ class MojiRecognize extends Thread {
 			for (int i = 0; (wordNode = jsonNode.path("words").path("word").get(i)) != null; i++) {
 				Word word = new Word();
 				JsonNode pointNode = wordNode.path("shape").path("point");
-				log(pointNode.toString());
+//				log(pointNode.toString());
 				word.setPoint(pointNode.get(0).path("@x").asInt(), pointNode.get(0).path("@y").asInt(), pointNode.get(2).path("@x").asInt(), pointNode.get(2).path("@y").asInt());
-				log(String.valueOf(word.getArea()));
+//				log(String.valueOf(word.getArea()));
+				word.setText(wordNode.path("@text").asText());
+				word.setScore(wordNode.path("@score").asInt());
 				wordList.add(word);
 			}
 
+			
 
 		} catch (Exception e) {
 			e.getStackTrace();
