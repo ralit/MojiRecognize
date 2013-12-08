@@ -1,0 +1,4 @@
+MojiRecognize
+=============
+
+mimimiruのMojiRecognize担当
