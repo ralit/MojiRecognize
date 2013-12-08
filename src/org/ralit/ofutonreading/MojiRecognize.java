@@ -2,9 +2,9 @@ package org.ralit.ofutonreading;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -13,13 +13,16 @@ import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 
+import android.content.Context;
 import android.net.http.AndroidHttpClient;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.TextToSpeech.OnInitListener;
 import android.util.Log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-class MojiRecognize extends Thread {
+class MojiRecognize extends Thread implements OnInitListener{
 
 	/**
 	 * 使用ライブラリ
@@ -31,10 +34,15 @@ class MojiRecognize extends Thread {
 	 * jackson-databind-2.2.0
 	 */
 
-	private String mFilePath;
+	private String filePath;
+	private Context context;
+	private boolean isSpeechInitialized = false;
+	TextToSpeech textToSpeech;
 
-	public MojiRecognize(String filePath) {
-		mFilePath = filePath;
+	public MojiRecognize(String filePath, Context context) {
+		this.filePath = filePath;
+		this.context = context;
+		textToSpeech = new TextToSpeech(context, this, "jp.kddilabs.n2tts");
 	}
 
 	private HttpResponse requestJobID() {
@@ -47,7 +55,7 @@ class MojiRecognize extends Thread {
 			HttpPost post = new HttpPost("https://api.apigw.smt.docomo.ne.jp/characterRecognition/v1/scene?APIKEY=" + DocomoAPI.getApi());
 			// これを知らなかった。MultipartのPOSTをするときはこのクラスを使おう。
 			MultipartEntity multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
-			FileBody fileBody = new FileBody(new File(mFilePath), "image/jpeg");
+			FileBody fileBody = new FileBody(new File(filePath), "image/jpeg");
 			multipartEntity.addPart("image", fileBody);
 			post.setEntity(multipartEntity);
 			// 通信開始
@@ -135,12 +143,31 @@ class MojiRecognize extends Thread {
 			// 認識結果が返ってきた
 			// JSONパース(文字情報)
 			ArrayList<Word> wordList = parseMoji(jsonNode);
+			Collections.sort(wordList, new PointComparator());
 			log(String.valueOf(wordList.size()));
+			
+			// 読み上げ
+			
+			if (isSpeechInitialized) {
+				log("isSpeechInitialized = true");
+			} else {
+				log("isSpeechInitialized = false");
+			}
+			for (int i = 0; i < wordList.size(); i++) {
+				textToSpeech.speak(wordList.get(i).getText(), TextToSpeech.QUEUE_ADD, null);
+			}
+			
 		} catch (Exception e) {
 			e.getStackTrace();
 		}
 	}
 
+	@Override
+	public void onInit(int status) {
+		if (status == TextToSpeech.SUCCESS) {
+			isSpeechInitialized = true;
+		}
+	}
 
 	private void log(String log) {
 		Log.i("ralit", log);
